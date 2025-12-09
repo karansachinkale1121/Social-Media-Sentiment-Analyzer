@@ -1,102 +1,64 @@
 import streamlit as st
-import snscrape.modules.twitter as sntwitter
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import altair as alt
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 
-# ---------------------------
-# APP TITLE
-# ---------------------------
 st.set_page_config(page_title="Social Media Sentiment Analyzer", layout="wide")
-st.title("📊 Real-Time Social Media Sentiment Analyzer")
-st.write("Analyze sentiment from Twitter posts on any topic in real time.")
+st.title("📊 Social Media Sentiment Analyzer")
 
-# ---------------------------
-# USER INPUT
-# ---------------------------
-topic = st.text_input("Enter a topic or hashtag (e.g., 'AI', '#Budget2025')")
+st.info("⚠ Live scraping works locally. Streamlit Cloud uses sample data due to platform limits.")
 
-limit = st.slider("Number of tweets to fetch", 50, 500, 150)
-
-# ---------------------------
-# FUNCTION: FETCH TWEETS
-# ---------------------------
-def fetch_tweets(query, limit):
-    tweets_list = []
-    for i, tweet in enumerate(sntwitter.TwitterSearchScraper(query).get_items()):
-        if i >= limit:
-            break
-        tweets_list.append([tweet.date, tweet.user.username, tweet.content])
-    df = pd.DataFrame(tweets_list, columns=["Date", "User", "Tweet"])
-    return df
-
-# ---------------------------
-# FUNCTION: SENTIMENT
-# ---------------------------
+# -----------------------
+# SENTIMENT FUNCTION
+# -----------------------
 def analyze_sentiment(df):
     analyzer = SentimentIntensityAnalyzer()
     df["Score"] = df["Tweet"].apply(lambda x: analyzer.polarity_scores(x)["compound"])
 
-    def labeler(x):
+    def label(x):
         if x > 0.05:
             return "Positive"
         elif x < -0.05:
             return "Negative"
-        else:
-            return "Neutral"
+        return "Neutral"
 
-    df["Sentiment"] = df["Score"].apply(labeler)
+    df["Sentiment"] = df["Score"].apply(label)
     return df
 
-# ---------------------------
-# MAIN LOGIC
-# ---------------------------
-if st.button("Analyze"):
-    if topic.strip() == "":
-        st.error("Please enter a topic before analyzing.")
-    else:
-        st.info("Fetching tweets...")
-        df = fetch_tweets(topic, limit)
+# -----------------------
+# LOAD DATA
+# -----------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("data/sample_tweets.csv")
 
-        st.info("Analyzing sentiment...")
-        df = analyze_sentiment(df)
+df = load_data()
+df = analyze_sentiment(df)
 
-        st.subheader("📄 Tweet Data")
-        st.dataframe(df, use_container_width=True)
+# -----------------------
+# DISPLAY DATA
+# -----------------------
+st.subheader("📄 Tweet Data")
+st.dataframe(df, use_container_width=True)
 
-        # ---------------------------
-        # SENTIMENT COUNT BAR CHART
-        # ---------------------------
-        st.subheader("📊 Sentiment Distribution")
-        chart = (
-            alt.Chart(df)
-            .mark_bar()
-            .encode(
-                x="Sentiment",
-                y="count()",
-                color="Sentiment"
-            )
-        )
-        st.altair_chart(chart, use_container_width=True)
+st.subheader("📊 Sentiment Distribution")
+chart = (
+    alt.Chart(df)
+    .mark_bar()
+    .encode(x="Sentiment", y="count()", color="Sentiment")
+)
+st.altair_chart(chart, use_container_width=True)
 
-        # ---------------------------
-        # WORD CLOUD
-        # ---------------------------
-        st.subheader("☁ Word Cloud")
-        text = " ".join(df["Tweet"])
-        wordcloud = WordCloud(width=1600, height=800, background_color="white").generate(text)
+st.subheader("☁ Word Cloud")
+text = " ".join(df["Tweet"])
+wc = WordCloud(width=1600, height=800, background_color="white").generate(text)
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation="bilinear")
-        ax.axis("off")
-        st.pyplot(fig)
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.imshow(wc)
+ax.axis("off")
+st.pyplot(fig)
 
-# ---------------------------
-# FOOTER
-# ---------------------------
-st.markdown("""
----
-Made with ❤️ using Streamlit, snscrape, and VADER Sentiment Analyzer.
-""")
+st.success("✅ App running successfully on Streamlit Cloud")
+
