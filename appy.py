@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from textblob import TextBlob
 import altair as alt
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
@@ -11,15 +10,7 @@ from wordcloud import WordCloud
 # ---------------------------------
 st.set_page_config(page_title="Social Media Sentiment Analyzer", layout="wide")
 st.title("📊 Social Media Sentiment Analyzer")
-st.write("Sentiment analysis on social media text using NLP (VADER).")
-
-# ---------------------------------
-# DOWNLOAD VADER LEXICON (CLOUD SAFE)
-# ---------------------------------
-try:
-    nltk.data.find("sentiment/vader_lexicon.zip")
-except LookupError:
-    nltk.download("vader_lexicon")
+st.write("Sentiment analysis on social media text using TextBlob NLP.")
 
 # ---------------------------------
 # LOAD DATA
@@ -34,16 +25,15 @@ df = load_data()
 # SENTIMENT ANALYSIS
 # ---------------------------------
 def analyze_sentiment(data):
-    analyzer = SentimentIntensityAnalyzer()
+    def get_polarity(text):
+        return TextBlob(str(text)).sentiment.polarity
 
-    data["Score"] = data["Tweet"].apply(
-        lambda x: analyzer.polarity_scores(str(x))["compound"]
-    )
+    data["Score"] = data["Tweet"].apply(get_polarity)
 
     def label(score):
-        if score > 0.05:
+        if score > 0:
             return "Positive"
-        elif score < -0.05:
+        elif score < 0:
             return "Negative"
         else:
             return "Neutral"
@@ -79,18 +69,18 @@ st.altair_chart(chart, use_container_width=True)
 # ---------------------------------
 st.subheader("☁ Word Cloud")
 text = " ".join(df["Tweet"])
-wordcloud = WordCloud(
+wc = WordCloud(
     width=1600,
     height=800,
     background_color="white"
 ).generate(text)
 
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.imshow(wordcloud, interpolation="bilinear")
+ax.imshow(wc, interpolation="bilinear")
 ax.axis("off")
 st.pyplot(fig)
 
 # ---------------------------------
 # FOOTER
 # ---------------------------------
-st.success("✅ App running successfully using NLTK VADER")
+st.success("✅ App running successfully using TextBlob (cloud-safe)")
